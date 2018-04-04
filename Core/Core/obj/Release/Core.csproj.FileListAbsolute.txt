@@ -1,0 +1,9 @@
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Release\Core.exe.config
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Release\Core.exe
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Release\Core.pdb
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Release\Newtonsoft.Json.dll
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Release\System.ValueTuple.dll
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Release\Newtonsoft.Json.xml
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Release\System.ValueTuple.xml
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\obj\Release\Core.exe
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\obj\Release\Core.pdb

@@ -1,0 +1,10 @@
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Debug\Core.exe.config
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Debug\Core.exe
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Debug\Core.pdb
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\obj\Debug\Core.csprojResolveAssemblyReference.cache
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\obj\Debug\Core.exe
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\obj\Debug\Core.pdb
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Debug\Newtonsoft.Json.dll
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Debug\System.ValueTuple.dll
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Debug\Newtonsoft.Json.xml
+C:\Users\ThePe\Source\Repos\Glaze\Core\Core\bin\Debug\System.ValueTuple.xml
