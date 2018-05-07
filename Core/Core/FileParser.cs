@@ -1,13 +1,12 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 
 namespace Core
 {
     class FileParser
     {
-        List<JSONItem> ParsedData = new List<JSONItem>();
-        public List<JSONItem> ExtraData = new List<JSONItem>();
-
         string RawSave;
         public gEquipment Equip = new gEquipment();
         public gInventory Inv = new gInventory();
@@ -15,169 +14,160 @@ namespace Core
 
         public FileParser(string rawSave) => RawSave = rawSave;
 
-        public JSONItem GetElementByName(string name)
-        {
-            foreach (JSONItem j in ParsedData)
-            {
-                if (j.Key == name) return j;
-            }
-            return null;
-        }
-
         public void Parse()
         {
-            RawSave = RawSave.Substring(0, RawSave.LastIndexOf("}"));
-            RawSave = RawSave.Substring(1);
+            JObject saveData = (JObject)JsonConvert.DeserializeObject(RawSave.Substring(0, RawSave.LastIndexOf("}")+1));
 
-            ParsedData = WorkMagic(RawSave);
+            Info.Hash = RawSave.Substring(RawSave.LastIndexOf("}"));
+            Info.Credits = (int) saveData.GetValue("Credits");
+            Info.Hardcore = (bool) saveData.GetValue("Hardcore");
+            Info.Level = (int) saveData.GetValue("Level");
+            Info.Name = (string) saveData.GetValue("Name");
+            Info.NewCharacter = (bool) saveData.GetValue("NewCharacter");
+            Info.PerkPoints = (int) saveData.GetValue("PerkPoints");
 
-            Info.Credits = int.Parse(GetElementByName("Credits").Value);
-            Info.Hardcore = bool.Parse(GetElementByName("Hardcore").Value);
-            Info.Level = int.Parse(GetElementByName("Level").Value);
-            Info.Name = GetElementByName("Name").Value;
-            Info.NewCharacter = bool.Parse(GetElementByName("NewCharacter").Value);
-            Info.PerkPoints = int.Parse(GetElementByName("PerkPoints").Value);
-
-            foreach (JSONItem perk in GetElementByName("Perks").Children)
+            foreach (JProperty perk in saveData.GetValue("Perks").Children())
             {
                 Affix toAdd;
-                if (Enum.TryParse<Affix>(perk.Key, out toAdd))
+                if (Enum.TryParse<Affix>(perk.Name, out toAdd))
                 {
-                    Info.Perks.Add((toAdd, float.Parse(perk.Value)));
+                    Info.Perks.Add((toAdd, float.Parse((string)perk.Value)));
                 }
             }
 
-            Info.TalentPoints = int.Parse(GetElementByName("TalentPoints").Value);
+            Info.TalentPoints = (int) saveData.GetValue("TalentPoints");
 
-            foreach (JSONItem perk in GetElementByName("Talents").Children)
+            foreach (JProperty perk in saveData.GetValue("Talents").Children())
             {
                 Affix toAdd;
-                if (Enum.TryParse<Affix>(perk.Key, out toAdd))
+                if (Enum.TryParse<Affix>(perk.Name, out toAdd))
                 {
-                    Info.Talents.Add((toAdd, float.Parse(perk.Value)));
+                    Info.Talents.Add((toAdd, float.Parse((string)perk.Value)));
                 }
             }
 
-            Info.XP = int.Parse(GetElementByName("XP").Value);
+            Info.XP = (int) saveData.GetValue("XP");
 
-            ExtraData.AddRange(ParsedData.GetRange(11, 6));
-        }
+            //The actual item information is a few levels deep, so we have to do this to get at it
+            JObject e_setup = (JObject)saveData.GetValue("Equipment");
+            JArray e_setup2 = (JArray)e_setup.GetValue("$values");
 
-        private List<JSONItem> WorkMagic(string input)
-        {
-            (List<string> _names, List<string> _values) = StringIntoStrings(input);
-            return SetupJSONObjects(_names, _values);
-        }
-
-        private List<JSONItem> SetupJSONObjects(List<string> names, List<string> values)
-        {
-            List<JSONItem> tempList = new List<JSONItem>();
-            JSONItem temp;
-            for (int i = 0; i < names.Count; i++)
+            foreach (JObject item in e_setup2)
             {
-                if (values[i].Trim().Substring(0, 1) == "{")
+                gItem new_item = new gItem();
+
+                new_item._type = (string)item.GetValue("$type");
+                new_item._name = (string)item.GetValue("Name");
+                new_item._cooldown = (float)item.GetValue("Cooldown");
+                new_item._effect = (float)item.GetValue("Effect");
+                new_item._favorite = (bool)item.GetValue("Favorite");
+                new_item._flavorText = (string)item.GetValue("FlavorText");
+                new_item._icon = (IconIndex)Enum.Parse(typeof(IconIndex), (string)item.GetValue("Icon"));
+                new_item._itemLevel = (int)item.GetValue("ItemLevel");
+                new_item._levelRequirement = (int)item.GetValue("LevelRequirement");
+                new_item._ramConsumed = (int)item.GetValue("RamConsumed");
+                new_item._rarity = (RarityType)Enum.Parse(typeof(RarityType), (string)item.GetValue("Rarity"));
+                new_item._specialProperties = (string)item.GetValue("SpecialProperties");
+                new_item._value = (int)item.GetValue("Value");
+
+                //new_item._affixes 
+                new_item._affixes = new List<(Affix, float)>();
+                foreach (JProperty affix in item.GetValue("Affixes"))
                 {
-                    temp = new JSONItem(names[i], 0, values[i], new List<JSONItem>());
-                    temp.Children = WorkMagic(temp.Value);
+                    Affix toAdd;
+                    if (Enum.TryParse<Affix>(affix.Name, out toAdd))
+                    {
+                        new_item._affixes.Add((toAdd, float.Parse((string)affix.Value)));
+                    }
+                }
+
+                if (item.GetValue("ProjectileType") != null)
+                {
+                    gWeapon new_wep = new gWeapon(new_item);
+
+                    new_wep._minDamage = (int)item.GetValue("MinDamage");
+                    new_wep._maxDamage = (int)item.GetValue("MaxDamage");
+                    new_wep._projectileType = (PayloadIndex)Enum.Parse(typeof(PayloadIndex), (string)item.GetValue("ProjectileType"));
+                    new_wep._projectileSpeed = (int)item.GetValue("ProjectileSpeed");
+                    new_wep._range = (int)item.GetValue("Range");
+                    new_wep._accuracy = (int)item.GetValue("Accuracy");
+                    new_wep._projectileCount = (int)item.GetValue("ProjectileCount");
+                    new_wep._pitch = (float)item.GetValue("Pitch");
+                    new_wep._weaponSound = (LaserSoundIndex)Enum.Parse(typeof(LaserSoundIndex), (string)item.GetValue("WeaponSound"));
+                    new_wep._damageFalloff = (bool)item.GetValue("DamageFalloff");
+
+                    JObject spread = (JObject)item.GetValue("WeaponSpread");
+                    new_wep._spread = new List<(string, float)>
+                    {
+                        ("MaxSpread", (float)spread.GetValue("MaxSpread")),
+                        ("SpreadPerShot", (float)spread.GetValue("SpreadPerShot")),
+                        ("SecondsToNormal", (float)spread.GetValue("SecondsToNormal"))
+                    };
+
+                    new_wep._weaponModel = (WeaponModelIndex)Enum.Parse(typeof(WeaponModelIndex), (string)item.GetValue("WeaponModel"));
+
+                    Equip.Items.Add(new_wep);
+                }
+                else if (item.GetValue("EnemyToSpawn") != null)
+                {
+                    gMinion new_min = new gMinion(new_item);
+                    new_min._minDamage = (int)item.GetValue("MinDamage");
+                    new_min._maxDamage = (int)item.GetValue("MaxDamage");
+                    new_min._enemyToSpawn = (EnemyIndex)Enum.Parse(typeof(EnemyIndex), (string)item.GetValue("EnemyToSpawn"));
+                    new_min._health = (int)item.GetValue("Health");
                 }
                 else
                 {
-                    temp = new JSONItem(names[i], 0, values[i], new List<JSONItem>());
+                    Equip.Items.Add(new_item);
                 }
-
-                tempList.Add(temp);
             }
 
-            return tempList;
-        }
+            //The actual item information is a few levels deep, so we have to do this to get at it
+            JObject i_setup = (JObject)saveData.GetValue("Inventory");
+            JArray i_setup2 = (JArray)e_setup.GetValue("$values");
 
-        private (List<string>, List<string>) StringIntoStrings(string rawSave)
-        {
-            string value = PrefilterString(rawSave);
-
-            List<string> temp_names = new List<string>();
-            List<string> temp_values = new List<string>();
-
-            int f_length = value.Length;
-            int sub_pos = 0;
-
-            while (sub_pos < f_length)
+            foreach (JObject item in i_setup2)
             {
-                string next_item = GetNextItem(value, sub_pos);
+                gItem new_item = new gItem();
 
-                sub_pos += next_item.Length + 1;
+                new_item._type = (string)item.GetValue("$type");
+                new_item._name = (string)item.GetValue("Name");
+                new_item._cooldown = (float)item.GetValue("Cooldown");
+                new_item._effect = (float)item.GetValue("Effect");
+                new_item._favorite = (bool)item.GetValue("Favorite");
+                new_item._flavorText = (string)item.GetValue("FlavorText");
+                new_item._icon = (IconIndex)Enum.Parse(typeof(IconIndex), (string)item.GetValue("Icon"));
+                new_item._itemLevel = (int)item.GetValue("ItemLevel");
+                new_item._levelRequirement = (int)item.GetValue("LevelRequirement");
+                new_item._ramConsumed = (int)item.GetValue("RamConsumed");
+                new_item._rarity = (RarityType)Enum.Parse(typeof(RarityType), (string)item.GetValue("Rarity"));
+                new_item._specialProperties = (string)item.GetValue("SpecialProperties");
+                new_item._value = (int)item.GetValue("Value");
 
-                int split_at = next_item.IndexOf(":");
+                //new_item._affixes 
+                new_item._affixes = new List<(Affix, float)>();
+                foreach (JProperty affix in item.GetValue("Affixes"))
+                {
+                    Affix toAdd;
+                    if (Enum.TryParse<Affix>(affix.Name, out toAdd))
+                    {
+                        new_item._affixes.Add((toAdd, float.Parse((string)affix.Value)));
+                    }
+                }
 
-                if (split_at < 0) break;
-
-                temp_names.Add(next_item.Substring(0, split_at).Trim());
-                temp_values.Add(next_item.Substring(split_at + 1).Trim());
+                Inv.Items.Add(new_item);
             }
 
-            return (temp_names, temp_values);
-        }
+            Info.Cheater = (bool)saveData.GetValue("Cheater");
+            Info.HighestServerHacked = (int)saveData.GetValue("HighestServerHacked");
+            Info.TimeSinceLastLevel = (float)saveData.GetValue("TimeSinceLastLevel");
 
-        private static string PrefilterString(string value)
-        {
-            int sub_end = value.LastIndexOf("}") > 0 ? value.LastIndexOf("}") : value.Length;            
-            value = value.Substring(0, sub_end);
-            value = value.Substring(1);
-            return value;
-        }
-
-        private string GetNextItem(string input, int start_pos)
-        {
-            string output;
-            int bracket_level = 0;
-            int speech_level = 0;
-            int cur_pos = start_pos;
-            int loop_pos = start_pos;
-            bool exit = false;
-
-            while (!exit)
+            JObject state = (JObject)saveData.GetValue("WorldState");
+            Info.WorldState = new List<(string, int)>
             {
-                if (loop_pos >= input.Length)
-                {
-                    return input.Substring(start_pos);
-                }
-                string s = GetChar(input, loop_pos);
-
-                if (s == "," && bracket_level == 0 && speech_level == 0)
-                {
-                    exit = true;
-                }
-                else if (s == "{") { bracket_level++; }
-                else if (s == "}") { bracket_level--; }
-
-                else if (s == "\"") { speech_level = 1 - speech_level; }
-
-                if (!exit) loop_pos++;
-            }
-
-            output = input.Substring(cur_pos, loop_pos - cur_pos);
-            cur_pos = loop_pos + 1;
-            loop_pos = cur_pos;
-
-            return output;
-        }
-
-        private string GetChar(string input, int charAt) => input.Substring(charAt, 1);
-    }
-
-    class JSONItem
-    {
-        public string Key;
-        int Level { get; set; }
-        public string Value;
-        public List<JSONItem> Children;
-
-        public JSONItem(string key, int level, string value, List<JSONItem> children)
-        {
-            Key = key.Substring(1, key.Length-2);
-            Level = level;
-            Value = value;
-            Children = children;
+                ("Door_Portcullis", (int?) state.GetValue("Door_Portcullis") ?? 0) ,
+                ("Door_Finality1", (int?) state.GetValue("Door_Finality1") ?? 0) 
+            };
         }
     }
 }

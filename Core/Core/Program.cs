@@ -27,7 +27,6 @@ namespace Core
                 curFile.SetInfo(parser.Info);
                 curFile.SetEquipment(parser.Equip);
                 curFile.SetInventory(parser.Inv);
-                curFile.extra = parser.ExtraData;
                 EditableData.Add(curFile);
             }
 
@@ -282,7 +281,7 @@ namespace Core
                         {
                             sw.WriteLine("{");
                             sw.WriteLine($" \"$type\": \"PlayerSaveProxy, Assembly-CSharp\",");
-                            sw.WriteLine($" \"Name\": {cur_file.player_info.Name},");
+                            sw.WriteLine($" \"Name\": \"{cur_file.player_info.Name}\",");
                             sw.WriteLine($" \"XP\": {cur_file.player_info.XP},");
                             sw.WriteLine($" \"Level\": {cur_file.player_info.Level},");
                             sw.WriteLine($" \"TalentPoints\": {cur_file.player_info.TalentPoints},");
@@ -323,8 +322,33 @@ namespace Core
                             sw.WriteLine($" \"NewCharacter\": {cur_file.player_info.NewCharacter.ToString().ToLower()},");
                             sw.WriteLine($" \"Credits\": {cur_file.player_info.Credits},");
 
-                            sw.Write(GetExtra(cur_file.extra));
-                            sw.Write("}5fa68df1015c9b40baf44fb421b90307");
+                            sw.WriteLine($" \"Equipment\": {{");
+                            sw.WriteLine($"     \"$type\": \"Item[], Assembly-CSharp\",");
+                            sw.WriteLine($"     \"$values\": [");
+
+                            i = writeEquipment(i, cur_file, sw);
+                            sw.WriteLine($"     ] {Environment.NewLine} }},");
+
+                            sw.WriteLine($" \"Inventory\": {{");
+                            sw.WriteLine($"     \"$type\": \"Item[], Assembly-CSharp\",");
+                            sw.WriteLine($"     \"$values\": [");
+
+                            i = writeInventory(i, cur_file, sw);
+
+                            sw.WriteLine($"     ] {Environment.NewLine} }},");
+
+                            sw.WriteLine($" \"Cheater\": {cur_file.player_info.Cheater.ToString().ToLower()},");
+                            sw.WriteLine($" \"HighestServerHacked\": {cur_file.player_info.HighestServerHacked},");
+                            sw.WriteLine($" \"TimeSinceLastLevel\": {cur_file.player_info.TimeSinceLastLevel},");
+
+
+                            sw.WriteLine($" \"WorldState\":  {{");
+                            sw.WriteLine($" \"$type\": \"System.Collections.Generic.Dictionary`2[[WorldState, Assembly - CSharp],[System.Int32, mscorlib]], mscorlib\",");
+                            sw.WriteLine($" \"Door_Portcullis\": {cur_file.player_info.WorldState[0].Item2},");
+                            sw.WriteLine($" \"Door_Finality1\": {cur_file.player_info.WorldState[1].Item2}");
+                            sw.WriteLine($" }}");
+
+                            sw.Write($"{cur_file.player_info.Hash}");
                             command_mode = 0;
                             exit = true;
                         }
@@ -335,19 +359,175 @@ namespace Core
 
         }
 
-        private static string GetExtra(List<JSONItem> extra)
+        private static int writeInventory(int i, SaveFile cur_file, StreamWriter sw)
         {
-            string output = "";
-            foreach (JSONItem data in extra)
+            for (int x = 0; x < 45; x++)
             {
-                output += $"    \"{data.Key}\": {data.Value},{Environment.NewLine}"; 
+                try
+                {
+                    gItem cur_item = cur_file.player_inventory.Items[x];
+                    string comma = x < 44 ? "," : "";
+
+                    sw.WriteLine("      {");
+
+                    if (cur_item is gWeapon)
+                    {
+                        gWeapon cur_wep = (gWeapon)cur_item;
+                        sw.WriteLine($"     \"MinDamage\": {cur_wep._minDamage},");
+                        sw.WriteLine($"     \"MaxDamage\": {cur_wep._maxDamage},");
+                        sw.WriteLine($"     \"ProjectileType\": {(int)cur_wep._projectileType},");
+                        sw.WriteLine($"     \"ProjectileSpeed\": {cur_wep._projectileSpeed},");
+                        sw.WriteLine($"     \"Range\": {cur_wep._range},");
+                        sw.WriteLine($"     \"Accuracy\": {cur_wep._accuracy},");
+                        sw.WriteLine($"     \"ProjectileCount\": {cur_wep._projectileCount},");
+                        sw.WriteLine($"     \"Pitch\": {cur_wep._pitch},");
+                        sw.WriteLine($"     \"WeaponSound\": {(int)cur_wep._weaponSound},");
+                        sw.WriteLine($"     \"DamageFalloff\": {cur_wep._accuracy.ToString().ToLower()},");
+
+                        sw.WriteLine($"     \"WeaponSpread\": {{");
+                        sw.WriteLine($"         \"$type\": \"WeaponSpread, Assembly - CSharp\",");
+                        sw.WriteLine($"         \"MaxSpread\": {cur_wep._spread[0].Item2},");
+                        sw.WriteLine($"         \"SpreadPerShot\": {cur_wep._spread[1].Item2},");
+                        sw.WriteLine($"         \"SecondsToNormal\": {cur_wep._spread[2].Item2}");
+                        sw.WriteLine($"     }},");
+
+                        sw.WriteLine($"     \"WeaponModel\": {(int)cur_wep._weaponModel},");
+                    }
+
+                    if (cur_item is gMinion)
+                    {
+                        gMinion cur_min = (gMinion)cur_item;
+                        sw.WriteLine($"     \"MinDamage\": {cur_min._minDamage},");
+                        sw.WriteLine($"     \"MaxDamage\": {cur_min._maxDamage},");
+                        sw.WriteLine($"     \"EnemyToSpawn\": {(int)cur_min._enemyToSpawn},");
+                        sw.WriteLine($"     \"Health\": {cur_min._health},");
+                    }
+
+                    sw.WriteLine($"     \"$type\": \"{cur_item._type}\",");
+                    sw.WriteLine($"     \"Name\": \"{cur_item._name}\",");
+                    sw.WriteLine($"     \"Value\": {cur_item._value},");
+
+                    sw.WriteLine($"     \"Affixes\":  {{");
+                    for (int a = 0; a < cur_item._affixes.Count; a++)
+                    {
+                        (Affix name, float level) perk = (
+                           cur_item._affixes[a].Item1,
+                           cur_item._affixes[a].Item2);
+
+                        int max = cur_item._affixes.Count - 1;
+                        string do_comma = a < max ? "," : "";
+
+                        sw.WriteLine($"    \"{perk.name}\": {perk.level.ToString("0.0")}{do_comma}");
+                    }
+                    sw.WriteLine($"     }},");
+
+                    sw.WriteLine($"     \"Icon\": {(int)cur_item._icon},");
+                    sw.WriteLine($"     \"RamConsumed\": {cur_item._ramConsumed},");
+                    sw.WriteLine($"     \"Effect\": {cur_item._effect},");
+                    sw.WriteLine($"     \"Cooldown\": {cur_item._cooldown},");
+                    sw.WriteLine($"     \"LevelRequirement\": {cur_item._levelRequirement},");
+                    sw.WriteLine($"     \"ItemLevel\": {cur_item._itemLevel},");
+                    sw.WriteLine($"     \"SpecialProperties\": \"{cur_item._specialProperties.Trim()}\",");
+                    sw.WriteLine($"     \"Favorite\": {cur_item._favorite.ToString().ToLower()},");
+                    sw.WriteLine($"     \"FlavorText\": \"{cur_item._flavorText.Trim()}\"");
+
+                    sw.WriteLine($"     }}{ comma } ");
+                }
+                catch
+                {
+                    string comma = x < 44 ? "," : "";
+                    sw.WriteLine($"     null{comma}");
+                }
             }
 
-            output = output.Substring(0, output.LastIndexOf(","));
-            output += $" }}{Environment.NewLine}";
-
-            return output;
+            return i;
         }
+
+        private static int writeEquipment(int i, SaveFile cur_file, StreamWriter sw)
+        {
+            for (int x = 0; x < 9; x++)
+            {
+                try
+                {
+                    gItem cur_item = cur_file.player_equipment.Items[x];
+                    string comma = x < 8 ? "," : "";
+
+                    sw.WriteLine("      {");
+
+                    if (cur_item is gWeapon)
+                    {
+                        gWeapon cur_wep = (gWeapon)cur_item;
+                        sw.WriteLine($"     \"MinDamage\": {cur_wep._minDamage},");
+                        sw.WriteLine($"     \"MaxDamage\": {cur_wep._maxDamage},");
+                        sw.WriteLine($"     \"ProjectileType\": {(int)cur_wep._projectileType},");
+                        sw.WriteLine($"     \"ProjectileSpeed\": {cur_wep._projectileSpeed},");
+                        sw.WriteLine($"     \"Range\": {cur_wep._range},");
+                        sw.WriteLine($"     \"Accuracy\": {cur_wep._accuracy},");
+                        sw.WriteLine($"     \"ProjectileCount\": {cur_wep._projectileCount},");
+                        sw.WriteLine($"     \"Pitch\": {cur_wep._pitch},");
+                        sw.WriteLine($"     \"WeaponSound\": {(int)cur_wep._weaponSound},");
+                        sw.WriteLine($"     \"DamageFalloff\": {cur_wep._accuracy.ToString().ToLower()},");
+
+                        sw.WriteLine($"     \"WeaponSpread\": {{");
+                        sw.WriteLine($"         \"$type\": \"WeaponSpread, Assembly - CSharp\",");
+                        sw.WriteLine($"         \"MaxSpread\": {cur_wep._spread[0].Item2},");
+                        sw.WriteLine($"         \"SpreadPerShot\": {cur_wep._spread[1].Item2},");
+                        sw.WriteLine($"         \"SecondsToNormal\": {cur_wep._spread[2].Item2}");
+                        sw.WriteLine($"     }},");
+
+                        sw.WriteLine($"     \"WeaponModel\": {(int)cur_wep._weaponModel},");
+                    }
+
+                    if (cur_item is gMinion)
+                    {
+                        gMinion cur_min = (gMinion)cur_item;
+                        sw.WriteLine($"     \"MinDamage\": {cur_min._minDamage},");
+                        sw.WriteLine($"     \"MaxDamage\": {cur_min._maxDamage},");
+                        sw.WriteLine($"     \"EnemyToSpawn\": {(int)cur_min._enemyToSpawn},");
+                        sw.WriteLine($"     \"Health\": {cur_min._health},");
+                    }
+
+                    sw.WriteLine($"     \"$type\": \"{cur_item._type}\",");
+                    sw.WriteLine($"     \"Name\": \"{cur_item._name}\",");
+                    sw.WriteLine($"     \"Value\": {cur_item._value},");
+                    sw.WriteLine($"     \"Rarity\": {(int)cur_item._rarity},");
+
+                    sw.WriteLine($"     \"Affixes\":  {{");
+                    for (int a = 0; a < cur_item._affixes.Count; a++)
+                    {
+                        (Affix name, float level) perk = (
+                           cur_item._affixes[a].Item1,
+                           cur_item._affixes[a].Item2);
+
+                        int max = cur_item._affixes.Count - 1;
+                        string do_comma = a < max ? "," : "";
+
+                        sw.WriteLine($"    \"{perk.name}\": {perk.level.ToString("0.0")}{do_comma}");
+                    }
+                    sw.WriteLine($"     }},");
+
+                    sw.WriteLine($"     \"Icon\": {(int)cur_item._icon},");
+                    sw.WriteLine($"     \"RamConsumed\": {cur_item._ramConsumed},");
+                    sw.WriteLine($"     \"Effect\": {cur_item._effect},");
+                    sw.WriteLine($"     \"Cooldown\": {cur_item._cooldown},");
+                    sw.WriteLine($"     \"LevelRequirement\": {cur_item._levelRequirement},");
+                    sw.WriteLine($"     \"ItemLevel\": {cur_item._itemLevel},");
+                    sw.WriteLine($"     \"SpecialProperties\": \"{cur_item._specialProperties.Trim()}\",");
+                    sw.WriteLine($"     \"Favorite\": {cur_item._favorite.ToString().ToLower()},");
+                    sw.WriteLine($"     \"FlavorText\": \"{cur_item._flavorText.Trim()}\"");
+
+                    sw.WriteLine($"     }}{ comma } ");
+                }
+                catch
+                {
+                    string comma = x < 8 ? "," : "";
+                    sw.WriteLine($"     null{comma}");
+                }
+            }
+
+            return i;
+        }
+
 
         private static List<FileInfo> GetSaveFiles()
         {
@@ -377,14 +557,11 @@ namespace Core
         
     }
 
-       
-
     class SaveFile
     {
         public gPlayerInfo player_info { get; set; } 
         public gEquipment player_equipment { get; set; }
         public gInventory player_inventory { get; set; }
-        public List<JSONItem> extra { get; set; }
 
         public void SetInventory(gInventory newInv) => player_inventory = newInv;
         public void SetEquipment(gEquipment newEquip) => player_equipment = newEquip;
@@ -403,6 +580,12 @@ namespace Core
         public bool Hardcore;
         public bool NewCharacter;
         public int Credits;
+
+        public bool Cheater;
+        public int HighestServerHacked;
+        public float TimeSinceLastLevel;
+        public List<(string, int)> WorldState = new List<(string, int)>();
+        public string Hash;
     }
 
     class gInventory
@@ -415,24 +598,91 @@ namespace Core
         public List<gItem> Items = new List<gItem>();
     }
 
+    class gMinion : gItem
+    {
+        public EnemyIndex _enemyToSpawn;
+        public int _minDamage = 1;
+        public int _maxDamage = 1;
+        public int _health = 1;
+
+        public gMinion(gItem base_item)
+        {
+            _type = base_item._type;
+            _name = base_item._name;
+            _value = base_item._value;
+            _rarity = base_item._rarity;
+            _affixes = base_item._affixes;
+            _icon = base_item._icon;
+            _ramConsumed = base_item._ramConsumed;
+            _effect = base_item._effect;
+            _cooldown = base_item._cooldown;
+            _levelRequirement = base_item._levelRequirement;
+            _itemLevel = base_item._itemLevel;
+            _specialProperties = base_item._specialProperties;
+            _favorite = base_item._favorite;
+            _flavorText = base_item._flavorText;
+        }
+    }
+
+    class gWeapon : gItem
+    {
+        public int _minDamage = 1;
+        public int _maxDamage = 1;
+        public PayloadIndex _projectileType;
+        public int _projectileSpeed = 80;
+        public int _range = 30;
+        public int _accuracy = 90;
+        public int _projectileCount = 1;
+        public float _pitch = 1f;
+        public LaserSoundIndex _weaponSound;
+        public bool _damageFalloff;
+        public List<(string, float)> _spread = new List<(string, float)>();
+        public WeaponModelIndex _weaponModel;
+
+        public gWeapon(gItem base_item)
+        {
+            _type = base_item._type;
+            _name = base_item._name;
+            _value = base_item._value;
+            _rarity = base_item._rarity;
+            _affixes = base_item._affixes;
+            _icon = base_item._icon;
+            _ramConsumed = base_item._ramConsumed;
+            _effect = base_item._effect;
+            _cooldown = base_item._cooldown;
+            _levelRequirement = base_item._levelRequirement;
+            _itemLevel = base_item._itemLevel;
+            _specialProperties = base_item._specialProperties;
+            _favorite = base_item._favorite;
+            _flavorText = base_item._flavorText;
+        }
+    }
+
     class gItem
     {
-        protected string _name;
-        protected int _value;
-        protected RarityType _rarity;
-        protected Dictionary<Affix, float> _affixes;
-        protected IconIndex _icon = IconIndex.Laser;
-        protected int _ramConsumed;
-        protected float _effect = 1f;
-        protected float _cooldown = 0.1f;
-        protected int _levelRequirement;
-        protected int _itemLevel = 1;
-        protected string _specialProperties = string.Empty;
-        protected bool _favorite;
-        protected string _flavorText = string.Empty;
+        public string _type;
+        public string _name;
+        public int _value;
+        public RarityType _rarity;
+        public List<(Affix, float)> _affixes;
+        public IconIndex _icon = IconIndex.Laser;
+        public int _ramConsumed;
+        public float _effect = 1f;
+        public float _cooldown = 0.1f;
+        public int _levelRequirement;
+        public int _itemLevel = 1;
+        public string _specialProperties = string.Empty;
+        public bool _favorite;
+        public string _flavorText = string.Empty;
 
-        public gItem(string name, int value, RarityType rarity, Dictionary<Affix, float> affixes, IconIndex icon, int ramConsumed, float effect, float cooldown, int levelRequirement, int itemLevel, string specialProperties, bool favorite, string flavorText)
+        public gItem()
         {
+
+        }
+
+        public gItem(string type, string name, int value, RarityType rarity, List<(Affix, float)> affixes, IconIndex icon, int ramConsumed, float effect, float cooldown, int levelRequirement, int itemLevel, string specialProperties, bool favorite, string flavorText)
+        {
+            _type = type;
             _name = name;
             _value = value;
             _rarity = rarity;

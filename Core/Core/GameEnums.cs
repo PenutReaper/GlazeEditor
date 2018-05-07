@@ -205,4 +205,19 @@ namespace Core
         SubIcon_Spiral,
         JumpOrig
     }
+
+    public enum EnemyIndex
+    {
+        Spider,
+        Probe,
+        Hopper,
+        Shark,
+        Crab,
+        Scorpion,
+        Cat,
+        CrabMustache,
+        CrabSD,
+        Snail,
+        Mom
+    }
 }
